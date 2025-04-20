@@ -10,6 +10,8 @@ import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.ArrayList;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -507,5 +509,36 @@ public class DatabaseUtil {
         } finally {
             releaseConnection(conn);
         }
+    }
+
+    public static List<Event> getAllEvents() {
+        List<Event> events = new ArrayList<>();
+        String query = "SELECT * FROM events ORDER BY event_date DESC";
+        
+        Connection conn = null;
+        try {
+            conn = getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(query);
+                 ResultSet rs = stmt.executeQuery()) {
+                
+                while (rs.next()) {
+                    Event event = new Event(
+                        rs.getInt("id"),
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getTimestamp("event_date").toLocalDateTime(),
+                        rs.getString("location"),
+                        rs.getInt("max_participants"),
+                        rs.getInt("created_by")
+                    );
+                    events.add(event);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error loading events: " + e.getMessage());
+        } finally {
+            releaseConnection(conn);
+        }
+        return events;
     }
 }

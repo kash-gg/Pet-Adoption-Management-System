@@ -64,6 +64,7 @@ public class DashboardController {
         Button petsBtn = createNavButton("Pets", false);
         Button adoptionsBtn = createNavButton("Adoptions", false);
         Button donationsBtn = createNavButton("Donations", false);
+        Button eventsBtn = createNavButton("Events", false);
         
         // Dark Mode Toggle
         HBox darkModeBox = new HBox(10);
@@ -99,6 +100,7 @@ public class DashboardController {
         petsBtn.setOnAction(e -> new PetController().showPetsTab(stage, width, height));
         adoptionsBtn.setOnAction(e -> new AdoptionController().showAdoptionTab(stage, width, height));
         donationsBtn.setOnAction(e -> new DonationController().showDonationTab(stage, width, height));
+        eventsBtn.setOnAction(e -> showEventsTab(stage, width, height));
         signOutBtn.setOnAction(e -> {
             DatabaseUtil.setCurrentUserId(-1); // Reset user session
             new App().start(stage, width, height);
@@ -115,6 +117,7 @@ public class DashboardController {
             petsBtn,
             adoptionsBtn,
             donationsBtn,
+            eventsBtn,
             darkModeBox,
             spacer,
             signOutBtn
@@ -280,5 +283,17 @@ public class DashboardController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void showEventsTab(Stage stage, double width, double height) {
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setStyle("-fx-background-color: " + (App.isDarkMode() ? "#2c2c2c" : "#f5f5f5") + ";");
+        
+        // Create sidebar
+        VBox sidebar = createSidebar();
+        mainLayout.setLeft(sidebar);
+        
+        // Create events content
+        new EventController().showEventsTab(stage, width, height);
     }
 }

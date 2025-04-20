@@ -1,27 +1,24 @@
 package com.example;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 public class Event {
     private int id;
     private String title;
-    private String location;
-    private String type;
-    private LocalDate date;
-    private LocalTime time;
     private String description;
-    private String imageUrl;
+    private LocalDateTime eventDate;
+    private String location;
+    private int maxParticipants;
+    private int createdBy;
 
-    public Event(int id, String title, String location, String type, LocalDate date, LocalTime time, String description, String imageUrl) {
+    public Event(int id, String title, String description, LocalDateTime eventDate, String location, int maxParticipants, int createdBy) {
         this.id = id;
         this.title = title;
-        this.location = location;
-        this.type = type;
-        this.date = date;
-        this.time = time;
         this.description = description;
-        this.imageUrl = imageUrl;
+        this.eventDate = eventDate;
+        this.location = location;
+        this.maxParticipants = maxParticipants;
+        this.createdBy = createdBy;
     }
 
     // Getters
@@ -33,28 +30,24 @@ public class Event {
         return title;
     }
 
-    public String getLocation() {
-        return location;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public LocalTime getTime() {
-        return time;
-    }
-
     public String getDescription() {
         return description;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public LocalDateTime getEventDate() {
+        return eventDate;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public int getMaxParticipants() {
+        return maxParticipants;
+    }
+
+    public int getCreatedBy() {
+        return createdBy;
     }
 
     // Setters
@@ -66,27 +59,23 @@ public class Event {
         this.title = title;
     }
 
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
-
-    public void setTime(LocalTime time) {
-        this.time = time;
-    }
-
     public void setDescription(String description) {
         this.description = description;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setEventDate(LocalDateTime eventDate) {
+        this.eventDate = eventDate;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public void setMaxParticipants(int maxParticipants) {
+        this.maxParticipants = maxParticipants;
+    }
+
+    public void setCreatedBy(int createdBy) {
+        this.createdBy = createdBy;
     }
 } 
