@@ -15,14 +15,36 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.cell.PropertyValueFactory;
+import java.time.LocalDate;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import javafx.fxml.FXML;
 
 public class AdoptionController {
     private static final int DEFAULT_WIDTH = 1200;
     private static final int DEFAULT_HEIGHT = 800;
+
+    private TableView<Adoption> adoptionsTable;
+    @FXML
+    private TableView<AdoptionApplication> applicationsTable;
+    @FXML
+    private TableColumn<AdoptionApplication, String> petNameColumn;
+    @FXML
+    private TableColumn<AdoptionApplication, String> applicantNameColumn;
+    @FXML
+    private TableColumn<AdoptionApplication, String> shelterNameColumn;
+    @FXML
+    private TableColumn<AdoptionApplication, String> statusColumn;
+    @FXML
+    private TableColumn<AdoptionApplication, LocalDate> applicationDateColumn;
 
     public void showAdoptionTab(Stage stage, double width, double height) {
         BorderPane mainLayout = new BorderPane();
@@ -40,31 +62,71 @@ public class AdoptionController {
             try {
                 new DashboardController().showDashboard(stage, width, height, DatabaseUtil.getCurrentUserId());
             } catch (Exception ex) {
-                showAlert("Error returning to dashboard: " + ex.getMessage());
+                showAlert("Error", "Error returning to dashboard: " + ex.getMessage(), Alert.AlertType.ERROR);
             }
         });
         
-        // Create search and filter section
-        VBox searchBox = createSearchBox();
+        // Create title section
+        Label titleLabel = new Label("Adoption Applications");
+        titleLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
+        titleLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
         
-        // Add back button and search box to top container
-        VBox topContainer = new VBox(10);
+        // Create applications table
+        TableView<AdoptionApplication> applicationsTable = new TableView<>();
+        applicationsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        // Define columns
+        TableColumn<AdoptionApplication, String> petNameCol = new TableColumn<>("Pet");
+        petNameCol.setCellValueFactory(new PropertyValueFactory<>("petName"));
+        
+        TableColumn<AdoptionApplication, String> applicantCol = new TableColumn<>("Applicant");
+        applicantCol.setCellValueFactory(new PropertyValueFactory<>("applicantName"));
+        
+        TableColumn<AdoptionApplication, String> shelterCol = new TableColumn<>("Shelter");
+        shelterCol.setCellValueFactory(new PropertyValueFactory<>("shelterName"));
+        
+        TableColumn<AdoptionApplication, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        
+        TableColumn<AdoptionApplication, LocalDate> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(new PropertyValueFactory<>("applicationDate"));
+        
+        applicationsTable.getColumns().addAll(petNameCol, applicantCol, shelterCol, statusCol, dateCol);
+        
+        // Load applications
+        loadAdoptionApplications(applicationsTable);
+        
+        // Create new application button
+        Button newApplicationBtn = new Button("New Application");
+        newApplicationBtn.setStyle(
+            "-fx-background-color: #2ecc71;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-weight: bold;" +
+            "-fx-background-radius: 5;" +
+            "-fx-padding: 10 20;" +
+            "-fx-cursor: hand;"
+        );
+        newApplicationBtn.setOnAction(e -> new PetController().showPetsTab(stage, width, height));
+        
+        // Create top container with back button and title
+        HBox topContainer = new HBox(20);
+        topContainer.setAlignment(Pos.CENTER_LEFT);
         topContainer.setPadding(new Insets(20));
-        topContainer.getChildren().addAll(backButton, searchBox);
+        topContainer.getChildren().addAll(backButton, titleLabel, new Region(), newApplicationBtn);
+        HBox.setHgrow(topContainer.getChildren().get(2), Priority.ALWAYS);
+        
+        // Add padding around the table
+        VBox tableContainer = new VBox(applicationsTable);
+        tableContainer.setPadding(new Insets(0, 20, 20, 20));
+        VBox.setVgrow(applicationsTable, Priority.ALWAYS);
+        
+        // Add components to layout
         mainLayout.setTop(topContainer);
-        
-        // Create pets grid
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        
-        FlowPane petsGrid = createPetsGrid();
-        scrollPane.setContent(petsGrid);
-        mainLayout.setCenter(scrollPane);
+        mainLayout.setCenter(tableContainer);
         
         // Create scene
         Scene scene = new Scene(mainLayout, width, height);
-        stage.setTitle("Pet Passion - View Pets for Adoption");
+        stage.setTitle("Pet Passion - Adoption Applications");
         stage.setScene(scene);
         stage.show();
     }
@@ -133,7 +195,7 @@ public class AdoptionController {
                 grid.getChildren().add(petCard);
             }
         } catch (SQLException e) {
-            showAlert("Error loading pets: " + e.getMessage());
+            showAlert("Error", "Error loading pets: " + e.getMessage(), Alert.AlertType.ERROR);
         }
         
         return grid;
@@ -378,7 +440,7 @@ public class AdoptionController {
         try {
             shelterComboBox.setItems(loadSheltersFromDatabase());
         } catch (SQLException e) {
-            showAlert("Error loading shelters: " + e.getMessage());
+            showAlert("Error", "Error loading shelters: " + e.getMessage(), Alert.AlertType.ERROR);
         }
         shelterComboBox.setCellFactory(lv -> new ListCell<Shelter>() {
             @Override
@@ -406,10 +468,36 @@ public class AdoptionController {
         // Submit button
         Button submitButton = new Button("Submit Application");
         submitButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white;");
+        
+        // Create table for displaying applications
+        TableView<AdoptionApplication> applicationsTable = new TableView<>();
+        applicationsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        // Define columns
+        TableColumn<AdoptionApplication, String> petNameCol = new TableColumn<>("Pet");
+        petNameCol.setCellValueFactory(new PropertyValueFactory<>("petName"));
+        
+        TableColumn<AdoptionApplication, String> applicantCol = new TableColumn<>("Applicant");
+        applicantCol.setCellValueFactory(new PropertyValueFactory<>("applicantName"));
+        
+        TableColumn<AdoptionApplication, String> shelterCol = new TableColumn<>("Shelter");
+        shelterCol.setCellValueFactory(new PropertyValueFactory<>("shelterName"));
+        
+        TableColumn<AdoptionApplication, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        
+        TableColumn<AdoptionApplication, LocalDate> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(new PropertyValueFactory<>("applicationDate"));
+        
+        applicationsTable.getColumns().addAll(petNameCol, applicantCol, shelterCol, statusCol, dateCol);
+        
+        // Load existing applications
+        loadAdoptionApplications(applicationsTable);
+        
         submitButton.setOnAction(e -> {
             try {
                 if (shelterComboBox.getValue() == null) {
-                    showAlert("Please select a shelter");
+                    showAlert("Error", "Please select a shelter", Alert.AlertType.ERROR);
                     return;
                 }
                 submitAdoptionApplication(
@@ -422,9 +510,21 @@ public class AdoptionController {
                     reasonArea.getText(),
                     shelterComboBox.getValue().getId()
                 );
-                showAlert("Application submitted successfully!");
+                showAlert("Success", "Adoption application submitted successfully!", Alert.AlertType.INFORMATION);
+                
+                // Clear form fields
+                nameField.clear();
+                emailField.clear();
+                phoneField.clear();
+                addressArea.clear();
+                experienceArea.clear();
+                reasonArea.clear();
+                shelterComboBox.setValue(null);
+                
+                // Refresh the applications table
+                loadAdoptionApplications(applicationsTable);
             } catch (Exception ex) {
-                showAlert("Error submitting application: " + ex.getMessage());
+                showAlert("Error", "Error submitting adoption application: " + ex.getMessage(), Alert.AlertType.ERROR);
             }
         });
         
@@ -438,10 +538,42 @@ public class AdoptionController {
             shelterComboBox,
             experienceArea,
             reasonArea,
-            submitButton
+            submitButton,
+            new Label("Your Applications"),
+            applicationsTable
         );
         
         return formBox;
+    }
+
+    private void loadAdoptionApplications(TableView<AdoptionApplication> table) {
+        try (var conn = DatabaseUtil.getConnection()) {
+            String query = "SELECT aa.*, p.name as pet_name, s.name as shelter_name " +
+                          "FROM adoption_applications aa " +
+                          "JOIN pets p ON aa.pet_id = p.id " +
+                          "JOIN shelters s ON aa.shelter_id = s.id " +
+                          "ORDER BY aa.application_date DESC";
+            
+            try (var stmt = conn.prepareStatement(query)) {
+                var rs = stmt.executeQuery();
+                ObservableList<AdoptionApplication> applications = FXCollections.observableArrayList();
+                
+                while (rs.next()) {
+                    applications.add(new AdoptionApplication(
+                        rs.getInt("id"),
+                        rs.getString("pet_name"),
+                        rs.getString("applicant_name"),
+                        rs.getString("shelter_name"),
+                        rs.getString("status"),
+                        rs.getDate("application_date").toLocalDate()
+                    ));
+                }
+                
+                table.setItems(applications);
+            }
+        } catch (SQLException e) {
+            showAlert("Error", "Error loading adoption applications: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
     }
 
     private void submitAdoptionApplication(int petId, String name, String email, String phone,
@@ -470,11 +602,11 @@ public class AdoptionController {
 
     private ObservableList<Shelter> loadSheltersFromDatabase() throws SQLException {
         ObservableList<Shelter> shelters = FXCollections.observableArrayList();
-        String query = "SELECT * FROM shelters";
+        String query = "SELECT id, name, address, phone, email, rating, capacity FROM shelters";
         
-        try (var conn = DatabaseUtil.getConnection();
-             var stmt = conn.createStatement();
-             var rs = stmt.executeQuery(query)) {
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
             
             while (rs.next()) {
                 Shelter shelter = new Shelter(
@@ -483,20 +615,101 @@ public class AdoptionController {
                     rs.getString("address"),
                     rs.getString("phone"),
                     rs.getString("email"),
+                    rs.getDouble("rating"),
                     rs.getInt("capacity")
                 );
                 shelters.add(shelter);
             }
         }
-        
         return shelters;
     }
 
-    private void showAlert(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Information");
+    private void showAlert(String title, String message, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
-        alert.showAndWait();
+        alert.show();
     }
-} 
+
+    private void processAdoption(String petName, String adopterName, String shelterName) {
+        try {
+            if (petName == null || petName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Pet name cannot be empty");
+            }
+            if (adopterName == null || adopterName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Adopter name cannot be empty");
+            }
+            if (shelterName == null || shelterName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Shelter name cannot be empty");
+            }
+
+            try (Connection conn = DatabaseUtil.getConnection()) {
+                // Check if pet exists
+                String checkPetQuery = "SELECT id FROM pets WHERE name = ?";
+                try (PreparedStatement checkPetStmt = conn.prepareStatement(checkPetQuery)) {
+                    checkPetStmt.setString(1, petName);
+                    ResultSet rs = checkPetStmt.executeQuery();
+                    if (!rs.next()) {
+                        throw new IllegalArgumentException("Pet not found: " + petName);
+                    }
+                }
+
+                // Check if shelter exists
+                String checkShelterQuery = "SELECT id FROM shelters WHERE name = ?";
+                try (PreparedStatement checkShelterStmt = conn.prepareStatement(checkShelterQuery)) {
+                    checkShelterStmt.setString(1, shelterName);
+                    ResultSet rs = checkShelterStmt.executeQuery();
+                    if (!rs.next()) {
+                        throw new IllegalArgumentException("Shelter not found: " + shelterName);
+                    }
+                }
+
+                // Insert adoption record
+                String insertQuery = "INSERT INTO adoptions (pet_name, adopter_name, adoption_date, shelter_name) VALUES (?, ?, CURRENT_DATE, ?)";
+                try (PreparedStatement stmt = conn.prepareStatement(insertQuery)) {
+                    stmt.setString(1, petName);
+                    stmt.setString(2, adopterName);
+                    stmt.setString(3, shelterName);
+                    int rowsAffected = stmt.executeUpdate();
+                    
+                    if (rowsAffected > 0) {
+                        showAlert("Success", "Adoption processed successfully!", Alert.AlertType.INFORMATION);
+                        loadAdoptions();
+                    } else {
+                        throw new SQLException("Failed to process adoption");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            showAlert("Error", "Error processing adoption: " + e.getMessage(), Alert.AlertType.ERROR);
+        } catch (IllegalArgumentException e) {
+            showAlert("Error", e.getMessage(), Alert.AlertType.ERROR);
+        } catch (Exception e) {
+            showAlert("Error", "An unexpected error occurred: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+
+    private void loadAdoptions() {
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            String query = "SELECT * FROM adoptions ORDER BY adoption_date DESC";
+            try (PreparedStatement stmt = conn.prepareStatement(query);
+                 ResultSet rs = stmt.executeQuery()) {
+                
+                ObservableList<Adoption> adoptions = FXCollections.observableArrayList();
+                while (rs.next()) {
+                    adoptions.add(new Adoption(
+                        rs.getInt("id"),
+                        rs.getString("pet_name"),
+                        rs.getString("adopter_name"),
+                        rs.getDate("adoption_date").toLocalDate(),
+                        rs.getString("shelter_name")
+                    ));
+                }
+                adoptionsTable.setItems(adoptions);
+            }
+        } catch (SQLException e) {
+            showAlert("Error", "Failed to load adoptions: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+}

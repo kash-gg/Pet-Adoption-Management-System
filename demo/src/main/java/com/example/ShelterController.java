@@ -9,10 +9,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.shape.Rectangle;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -156,17 +153,6 @@ public class ShelterController {
         );
         card.setPrefWidth(300);
         
-        // Shelter Image
-        ImageView shelterImage = createShelterImageView(shelter.getImageUrl());
-        shelterImage.setFitWidth(270);
-        shelterImage.setFitHeight(180);
-        
-        // Clip image to rounded corners
-        Rectangle clip = new Rectangle(270, 180);
-        clip.setArcWidth(10);
-        clip.setArcHeight(10);
-        shelterImage.setClip(clip);
-        
         // Shelter Info
         Label nameLabel = new Label(shelter.getName());
         nameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 18));
@@ -174,7 +160,7 @@ public class ShelterController {
         
         Label detailsLabel = new Label(
             shelter.getLocation() + "\n" +
-            "Type: " + shelter.getType() + "\n" +
+            //"Type: " + shelter.getType() + "\n" +
             "Rating: " + shelter.getRating() + " ★\n" +
             "Capacity: " + shelter.getCapacity() + " pets"
         );
@@ -192,51 +178,16 @@ public class ShelterController {
         );
         visitButton.setOnAction(e -> showShelterDetails(shelter));
         
-        card.getChildren().addAll(shelterImage, nameLabel, detailsLabel, visitButton);
+        card.getChildren().addAll(nameLabel, detailsLabel, visitButton);
         card.setAlignment(Pos.CENTER);
         
         return card;
-    }
-
-    private ImageView createShelterImageView(String imageUrl) {
-        ImageView imageView = new ImageView();
-        try {
-            if (imageUrl != null && !imageUrl.isEmpty()) {
-                String resourcePath = "/images/shelters/" + imageUrl;
-                var imageStream = getClass().getResourceAsStream(resourcePath);
-                if (imageStream != null) {
-                    imageView.setImage(new Image(imageStream));
-                } else {
-                    imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-shelter.jpg")));
-                }
-            } else {
-                imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-shelter.jpg")));
-            }
-        } catch (Exception e) {
-            System.err.println("Error loading image: " + e.getMessage());
-            try {
-                imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-shelter.jpg")));
-            } catch (Exception ex) {
-                System.err.println("Failed to load default image: " + ex.getMessage());
-            }
-        }
-        return imageView;
     }
 
     private void showShelterDetails(Shelter shelter) {
         Stage detailsStage = new Stage();
         BorderPane mainLayout = new BorderPane();
         mainLayout.setStyle("-fx-background-color: " + (App.isDarkMode() ? "#2c2c2c" : "white") + ";");
-        
-        // Image section
-        ImageView shelterImage = createShelterImageView(shelter.getImageUrl());
-        shelterImage.setFitWidth(400);
-        shelterImage.setFitHeight(300);
-        
-        VBox imageBox = new VBox(shelterImage);
-        imageBox.setAlignment(Pos.CENTER);
-        imageBox.setPadding(new Insets(20));
-        mainLayout.setLeft(imageBox);
         
         // Details section
         VBox detailsBox = new VBox(20);
@@ -249,10 +200,10 @@ public class ShelterController {
         
         Label detailsLabel = new Label(
             "Location: " + shelter.getLocation() + "\n" +
-            "Type: " + shelter.getType() + "\n" +
+            //"Type: " + shelter.getType() + "\n" +
             "Rating: " + shelter.getRating() + " ★\n" +
             "Capacity: " + shelter.getCapacity() + " pets\n\n" +
-            "Description:\n" + shelter.getDescription() + "\n\n" +
+            //"Description:\n" + shelter.getDescription() + "\n\n" +
             "Contact:\n" +
             "Phone: " + shelter.getPhone() + "\n" +
             "Email: " + shelter.getEmail() + "\n" +
@@ -331,14 +282,12 @@ public class ShelterController {
         List<Shelter> shelters = new ArrayList<>();
         // This is a placeholder - you would implement actual database loading here
         shelters.add(new Shelter(
-            1, "Happy Paws Shelter", "North", "Non-Profit", 4.5,
-            50, "A loving home for pets in need", "123-456-7890",
-            "info@happypaws.org", "123 Pet Street, North City"
+            1, "Happy Paws Shelter", "123 Pet Street, North City", "123-456-7890",
+            "info@happypaws.org", 4.5, 50
         ));
         shelters.add(new Shelter(
-            2, "Safe Haven Animal Rescue", "South", "Public", 4.8,
-            75, "Dedicated to rescuing and rehabilitating animals", "987-654-3210",
-            "contact@safehaven.org", "456 Rescue Road, South City"
+            2, "Safe Haven Animal Rescue", "456 Rescue Road, South City", "987-654-3210",
+            "contact@safehaven.org", 4.8, 75
         ));
         return shelters;
     }

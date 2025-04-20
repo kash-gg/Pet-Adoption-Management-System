@@ -39,6 +39,8 @@ public class DonationController {
     private TextArea messageArea;
     @FXML
     private TableView<Donation> donationsTable;
+    @FXML
+    private TextField nameField;
 
     public void showDonationsTab(Stage stage, double width, double height, int userId) {
         BorderPane mainLayout = new BorderPane();
@@ -306,7 +308,6 @@ public class DonationController {
                 System.out.println("Payment Method: " + paymentMethodCombo.getValue());
                 System.out.println("Donation Type: " + donationTypeCombo.getValue());
                 System.out.println("Purpose: " + purposeCombo.getValue());
-                System.out.println("PayPal Email: " + paypalEmailField.getText());
                 
                 // Validate inputs
                 if (donationTypeCombo.getValue() == null) {
@@ -332,31 +333,35 @@ public class DonationController {
                     return;
                 }
                 
-                // Validate PayPal email
-                if (paymentMethod.equals("PayPal")) {
-                    if (paypalEmailField.getText().isEmpty()) {
-                        showAlert("Please enter your PayPal email");
-                        return;
-                    }
-                    if (!paypalEmailField.getText().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-                        showAlert("Please enter a valid email address");
-                        return;
-                    }
-                }
-                
                 if (purposeCombo.getValue() == null) {
                     showAlert("Please select a donation purpose");
                     return;
                 }
+
+                // Get the current user's name from the database
+                String donorName;
+                try (var conn = DatabaseUtil.getConnection();
+                     var stmt = conn.prepareStatement("SELECT name FROM users WHERE id = ?")) {
+                    stmt.setInt(1, userId);
+                    var rs = stmt.executeQuery();
+                    if (rs.next()) {
+                        donorName = rs.getString("name");
+                    } else {
+                        showAlert("Error: Could not retrieve user information");
+                        return;
+                    }
+                }
                 
                 // Process donation
+                System.out.println("Adding donation with donor name: " + donorName);
                 boolean success = DatabaseUtil.addDonation(
                     userId,
                     amount,
-                    paymentMethod + (paymentMethod.equals("PayPal") ? " (" + paypalEmailField.getText() + ")" : ""),
+                    paymentMethod,
                     donationTypeCombo.getValue(),
                     purposeCombo.getValue(),
-                    messageArea.getText()
+                    messageArea.getText(),
+                    donorName
                 );
                 
                 if (success) {
@@ -410,7 +415,13 @@ public class DonationController {
             System.out.println("Processing donation for user ID: " + userId);
             
             if (userId <= 0) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Please log in to make a donation.");
+                showAlert("Please log in to make a donation.");
+                return;
+            }
+
+            String donorName = nameField.getText().trim();
+            if (donorName.isEmpty()) {
+                showAlert("Please enter your name.");
                 return;
             }
 
@@ -420,37 +431,31 @@ public class DonationController {
             String purpose = purposeComboBox.getValue();
             String message = messageArea.getText();
 
-            System.out.println("Donation details - Amount: " + amount + 
+            System.out.println("Donation details - Donor: " + donorName + 
+                             ", Amount: " + amount + 
                              ", Payment Method: " + paymentMethod + 
                              ", Type: " + donationType + 
                              ", Purpose: " + purpose);
 
             boolean success = DatabaseUtil.addDonation(userId, amount, paymentMethod, 
-                                                     donationType, purpose, message);
+                                                     donationType, purpose, message,
+                                                     donorName);
 
             if (success) {
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Donation processed successfully!");
+                showAlert("Donation processed successfully!");
                 loadDonationsFromDatabase(); // Refresh the donations table
                 clearForm();
             } else {
-                showAlert(Alert.AlertType.ERROR, "Error", "Error processing the donation. Please try again.");
+                showAlert("Error processing the donation. Please try again.");
             }
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Error", "Please enter a valid amount.");
+            showAlert("Please enter a valid amount.");
             System.out.println("Error parsing donation amount: " + e.getMessage());
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Error", "An unexpected error occurred: " + e.getMessage());
+            showAlert("An unexpected error occurred: " + e.getMessage());
             System.out.println("Unexpected error in processDonation: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    private void showAlert(Alert.AlertType alertType, String title, String content) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     private void clearForm() {
@@ -463,7 +468,7 @@ public class DonationController {
 
     private void loadDonationsFromDatabase() {
         try {
-            String query = "SELECT * FROM donations WHERE user_id = ?";
+            String query = "SELECT * FROM donations WHERE user_id = ? ORDER BY date DESC";
             PreparedStatement pstmt = DatabaseUtil.getConnection().prepareStatement(query);
             pstmt.setInt(1, DatabaseUtil.getCurrentUserId());
             ResultSet rs = pstmt.executeQuery();
@@ -472,20 +477,21 @@ public class DonationController {
             while (rs.next()) {
                 donations.add(new Donation(
                     rs.getInt("id"),
-                    rs.getInt("user_id"),
+                    rs.getString("donor_name"),
                     rs.getDouble("amount"),
                     rs.getString("payment_method"),
                     rs.getString("donation_type"),
                     rs.getString("purpose"),
                     rs.getString("message"),
-                    rs.getTimestamp("date"),
-                    rs.getString("status")
+                    rs.getDate("date").toLocalDate(),
+                    rs.getString("status"),
+                    rs.getInt("user_id")
                 ));
             }
             donationsTable.setItems(donations);
         } catch (SQLException e) {
             System.out.println("Error loading donations: " + e.getMessage());
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to load donations.");
+            showAlert("Failed to load donations.");
         }
     }
 
@@ -509,73 +515,111 @@ public class DonationController {
             }
         });
         
-        // Create donation form
-        VBox donationForm = createDonationForm(stage);
+        // Title
+        Label titleLabel = new Label("Donations");
+        titleLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
+        titleLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+
+        // Top container with back button and title
+        VBox topContainer = new VBox(10);
+        topContainer.setPadding(new Insets(20));
+        topContainer.getChildren().addAll(backButton, titleLabel);
+
+        // Create split pane for donation form and table
+        SplitPane splitPane = new SplitPane();
         
-        // Add back button and form to container
-        VBox container = new VBox(20);
-        container.setPadding(new Insets(20));
-        container.getChildren().addAll(backButton, donationForm);
+        // Left side - Donation Form
+        VBox donationForm = createDonationForm();
         
-        // Add scroll pane for responsiveness
-        ScrollPane scrollPane = new ScrollPane(container);
+        // Right side - Donations Table
+        VBox tableContainer = new VBox(10);
+        tableContainer.setPadding(new Insets(20));
+        
+        Label tableTitle = new Label("Recent Donations");
+        tableTitle.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
+        tableTitle.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        
+        donationsTable = createDonationsTable();
+        
+        // Wrap table in ScrollPane
+        ScrollPane scrollPane = new ScrollPane(donationsTable);
         scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        mainLayout.setCenter(scrollPane);
+        
+        tableContainer.getChildren().addAll(tableTitle, scrollPane);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        
+        // Add components to split pane
+        splitPane.getItems().addAll(donationForm, tableContainer);
+        splitPane.setDividerPositions(0.4);
+        
+        // Set up main layout
+        mainLayout.setTop(topContainer);
+        mainLayout.setCenter(splitPane);
         
         // Create scene
         Scene scene = new Scene(mainLayout, width, height);
-        stage.setTitle("Pet Passion - Make a Donation");
+        stage.setTitle("Pet Passion - Donations");
         stage.setScene(scene);
-        stage.show();
+        
+        // Load initial data
+        loadDonationsFromDatabase();
     }
     
-    private VBox createDonationForm(Stage stage) {
-        VBox form = new VBox(20);
-        form.setAlignment(Pos.TOP_CENTER);
-        form.setPadding(new Insets(30));
-        form.setMaxWidth(600);
+    private VBox createDonationForm() {
+        VBox form = new VBox(15);
+        form.setPadding(new Insets(20));
         form.setStyle(
-            "-fx-background-color: white;" +
-            "-fx-background-radius: 10;" +
-            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);"
+            "-fx-background-color: " + (App.isDarkMode() ? "#333333" : "white") + ";" +
+            "-fx-background-radius: 10;"
         );
-        
-        // Title
-        Label titleLabel = new Label("Make a Donation");
-        titleLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
-        titleLabel.setTextFill(Color.rgb(44, 62, 80));
-        
+
+        Label formTitle = new Label("Make a Donation");
+        formTitle.setFont(Font.font("Verdana", FontWeight.BOLD, 20));
+        formTitle.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+
+        // Name field
+        Label nameLabel = new Label("Name");
+        nameLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        nameField = new TextField();
+        styleTextField(nameField);
+
         // Amount field
-        TextField amountField = new TextField();
-        amountField.setPromptText("Enter amount");
+        Label amountLabel = new Label("Amount ($)");
+        amountLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        amountField = new TextField();
         styleTextField(amountField);
-        
-        // Donation type
-        ComboBox<String> donationTypeBox = new ComboBox<>();
-        donationTypeBox.setPromptText("Select donation type");
-        donationTypeBox.getItems().addAll("One-time", "Monthly", "Annual");
-        styleComboBox(donationTypeBox);
-        
-        // Purpose
-        ComboBox<String> purposeBox = new ComboBox<>();
-        purposeBox.setPromptText("Select purpose");
-        purposeBox.getItems().addAll("Medical Care", "Food & Supplies", "Shelter Maintenance", "General Support");
-        styleComboBox(purposeBox);
-        
+
         // Payment method
-        ComboBox<String> paymentMethodBox = new ComboBox<>();
-        paymentMethodBox.setPromptText("Select payment method");
-        paymentMethodBox.getItems().addAll("Credit Card", "Debit Card", "PayPal");
-        styleComboBox(paymentMethodBox);
-        
+        Label paymentLabel = new Label("Payment Method");
+        paymentLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        paymentMethodComboBox = new ComboBox<>();
+        paymentMethodComboBox.getItems().addAll("Credit Card", "Debit Card", "PayPal", "Bank Transfer");
+        styleComboBox(paymentMethodComboBox);
+
+        // Donation type
+        Label typeLabel = new Label("Donation Type");
+        typeLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        donationTypeComboBox = new ComboBox<>();
+        donationTypeComboBox.getItems().addAll("One-time", "Monthly", "Annual");
+        styleComboBox(donationTypeComboBox);
+
+        // Purpose
+        Label purposeLabel = new Label("Purpose");
+        purposeLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        purposeComboBox = new ComboBox<>();
+        purposeComboBox.getItems().addAll("Medical Treatment", "Food and Supplies", "Shelter Maintenance", "General Support");
+        styleComboBox(purposeComboBox);
+
         // Message
-        TextArea messageArea = new TextArea();
-        messageArea.setPromptText("Add a message (optional)");
+        Label messageLabel = new Label("Message (Optional)");
+        messageLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        messageArea = new TextArea();
+        messageArea.setPromptText("Add a message with your donation");
         messageArea.setPrefRowCount(3);
-        messageArea.setWrapText(true);
         styleTextArea(messageArea);
-        
+
         // Submit button
         Button submitButton = new Button("Submit Donation");
         submitButton.setStyle(
@@ -587,102 +631,98 @@ public class DonationController {
             "-fx-font-size: 14px;" +
             "-fx-cursor: hand;"
         );
-        
-        submitButton.setOnAction(e -> {
-            try {
-                double amount = Double.parseDouble(amountField.getText());
-                String donationType = donationTypeBox.getValue();
-                String purpose = purposeBox.getValue();
-                String paymentMethod = paymentMethodBox.getValue();
-                String message = messageArea.getText();
-                
-                if (validateDonation(amount, donationType, purpose, paymentMethod)) {
-                    processDonation(amount, donationType, purpose, paymentMethod, message);
-                    showAlert("Thank you for your donation!");
-                    new DashboardController().showDashboard(stage, stage.getWidth(), stage.getHeight(), DatabaseUtil.getCurrentUserId());
-                }
-            } catch (NumberFormatException ex) {
-                showAlert("Please enter a valid amount");
-            } catch (Exception ex) {
-                showAlert("Error processing donation: " + ex.getMessage());
-            }
-        });
-        
+        submitButton.setMaxWidth(Double.MAX_VALUE);
+        submitButton.setOnAction(e -> processDonation());
+
         form.getChildren().addAll(
-            titleLabel,
-            new Label("Amount:"),
-            amountField,
-            new Label("Donation Type:"),
-            donationTypeBox,
-            new Label("Purpose:"),
-            purposeBox,
-            new Label("Payment Method:"),
-            paymentMethodBox,
-            new Label("Message (Optional):"),
-            messageArea,
+            formTitle,
+            nameLabel, nameField,
+            amountLabel, amountField,
+            paymentLabel, paymentMethodComboBox,
+            typeLabel, donationTypeComboBox,
+            purposeLabel, purposeComboBox,
+            messageLabel, messageArea,
             submitButton
         );
-        
+
         return form;
     }
     
     private void styleTextField(TextField field) {
         field.setStyle(
-            "-fx-background-color: white;" +
-            "-fx-border-color: #e0e0e0;" +
-            "-fx-border-radius: 5;" +
-            "-fx-padding: 8 12;" +
-            "-fx-font-size: 14px;"
+            "-fx-background-color: " + (App.isDarkMode() ? "#444444" : "white") + ";" +
+            "-fx-text-fill: " + (App.isDarkMode() ? "white" : "black") + ";" +
+            "-fx-border-color: #d8dee9;" +
+            "-fx-border-radius: 4;" +
+            "-fx-padding: 8;"
         );
-        field.setPrefHeight(35);
     }
     
     private void styleComboBox(ComboBox<?> comboBox) {
         comboBox.setStyle(
-            "-fx-background-color: white;" +
-            "-fx-border-color: #e0e0e0;" +
-            "-fx-border-radius: 5;" +
-            "-fx-padding: 4 8;" +
-            "-fx-font-size: 14px;"
+            "-fx-background-color: " + (App.isDarkMode() ? "#444444" : "white") + ";" +
+            "-fx-text-fill: " + (App.isDarkMode() ? "white" : "black") + ";" +
+            "-fx-border-color: #d8dee9;" +
+            "-fx-border-radius: 4;" +
+            "-fx-padding: 4;"
         );
-        comboBox.setPrefHeight(35);
-        comboBox.setMaxWidth(Double.MAX_VALUE);
     }
     
     private void styleTextArea(TextArea area) {
         area.setStyle(
-            "-fx-background-color: white;" +
-            "-fx-border-color: #e0e0e0;" +
-            "-fx-border-radius: 5;" +
-            "-fx-padding: 8;" +
-            "-fx-font-size: 14px;"
+            "-fx-background-color: " + (App.isDarkMode() ? "#444444" : "white") + ";" +
+            "-fx-text-fill: " + (App.isDarkMode() ? "white" : "black") + ";" +
+            "-fx-border-color: #d8dee9;" +
+            "-fx-border-radius: 4;" +
+            "-fx-padding: 8;"
         );
     }
     
-    private boolean validateDonation(double amount, String donationType, String purpose, String paymentMethod) {
-        if (amount <= 0) {
-            showAlert("Please enter a valid amount");
-            return false;
-        }
-        if (donationType == null || donationType.isEmpty()) {
-            showAlert("Please select a donation type");
-            return false;
-        }
-        if (purpose == null || purpose.isEmpty()) {
-            showAlert("Please select a purpose");
-            return false;
-        }
-        if (paymentMethod == null || paymentMethod.isEmpty()) {
-            showAlert("Please select a payment method");
-            return false;
-        }
-        return true;
+    private void clearForm(TextField nameField, TextField amountField, 
+                         ComboBox<String> paymentMethodBox, 
+                         ComboBox<String> donationTypeBox,
+                         ComboBox<String> purposeBox,
+                         TextArea messageArea) {
+        nameField.clear();
+        amountField.clear();
+        paymentMethodBox.setValue(null);
+        donationTypeBox.setValue(null);
+        purposeBox.setValue(null);
+        messageArea.clear();
     }
-    
-    private void processDonation(double amount, String donationType, String purpose, String paymentMethod, String message) {
-        int userId = DatabaseUtil.getCurrentUserId();
-        if (!DatabaseUtil.addDonation(userId, amount, paymentMethod, donationType, purpose, message)) {
-            throw new RuntimeException("Failed to process donation");
-        }
+
+    private TableView<Donation> createDonationsTable() {
+        TableView<Donation> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        // Define columns
+        TableColumn<Donation, String> nameCol = new TableColumn<>("Donor Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("donorName"));
+
+        TableColumn<Donation, Double> amountCol = new TableColumn<>("Amount");
+        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
+        amountCol.setCellFactory(tc -> new TableCell<Donation, Double>() {
+            @Override
+            protected void updateItem(Double amount, boolean empty) {
+                super.updateItem(amount, empty);
+                if (empty || amount == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("$%.2f", amount));
+                }
+            }
+        });
+
+        TableColumn<Donation, String> purposeCol = new TableColumn<>("Purpose");
+        purposeCol.setCellValueFactory(new PropertyValueFactory<>("purpose"));
+
+        TableColumn<Donation, String> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
+
+        TableColumn<Donation, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+
+        table.getColumns().addAll(nameCol, amountCol, purposeCol, dateCol, statusCol);
+        return table;
     }
-} 
+}

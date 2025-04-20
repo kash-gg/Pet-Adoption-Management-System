@@ -10,6 +10,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.scene.shape.Circle;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import java.sql.SQLException;
 
 public class DashboardController {
     private static final int DEFAULT_WIDTH = 1200;
@@ -21,6 +24,7 @@ public class DashboardController {
     private int userId;
     private BorderPane mainLayout;
     private VBox sidebar;
+    private VBox content;
 
     public void showDashboard(Stage stage, double width, double height, int userId) {
         this.stage = stage;
@@ -36,7 +40,7 @@ public class DashboardController {
         mainLayout.setLeft(sidebar);
         
         // Create content area
-        VBox content = createContent();
+        content = createContent();
         mainLayout.setCenter(content);
         
         // Create scene
@@ -171,10 +175,21 @@ public class DashboardController {
         subtitleLabel.setFont(Font.font("Verdana", FontWeight.NORMAL, 16));
         subtitleLabel.setTextFill(App.isDarkMode() ? Color.rgb(200, 200, 200) : Color.rgb(108, 117, 125));
         
-        // Action cards
-        GridPane actionCards = createActionCards();
+        // Action cards in a ScrollPane
+        ScrollPane actionScrollPane = new ScrollPane();
+        actionScrollPane.setFitToWidth(true);
+        actionScrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         
-        content.getChildren().addAll(welcomeLabel, subtitleLabel, actionCards);
+        GridPane actionCards = createActionCards();
+        actionScrollPane.setContent(actionCards);
+        
+        // Add all components to main content
+        content.getChildren().addAll(
+            welcomeLabel,
+            subtitleLabel,
+            actionScrollPane
+        );
+        
         return content;
     }
     
@@ -266,4 +281,4 @@ public class DashboardController {
         alert.setContentText(message);
         alert.showAndWait();
     }
-} 
+}

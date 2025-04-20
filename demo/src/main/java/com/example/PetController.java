@@ -17,6 +17,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.InputStream;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -319,51 +320,35 @@ public class PetController {
         return "/images/default-pet.jpg";
     }
 
-    private ImageView createPetImageView(String imageUrl) {
+    private ImageView createPetImageView(String imagePath) {
         ImageView imageView = new ImageView();
-        try {
-            if (imageUrl != null && !imageUrl.isEmpty()) {
-                // First try to load directly from the resources directory
-                String resourcePath = "/images/" + (imageUrl.contains("/") ? imageUrl.substring(imageUrl.lastIndexOf("/") + 1) : imageUrl);
-                var imageStream = getClass().getResourceAsStream(resourcePath);
-                
-                if (imageStream != null) {
-                    imageView.setImage(new Image(imageStream));
-                    System.out.println("Successfully loaded image from resources: " + resourcePath);
-                } else {
-                    // Try loading from the absolute path in the workspace
-                    String absolutePath = "file:demo/src/main/resources/images/" + (imageUrl.contains("/") ? imageUrl.substring(imageUrl.lastIndexOf("/") + 1) : imageUrl);
-                    try {
-                        Image image = new Image(absolutePath);
-                        if (!image.isError()) {
-                            imageView.setImage(image);
-                            System.out.println("Successfully loaded image from absolute path: " + absolutePath);
-                        } else {
-                            System.err.println("Error loading image from absolute path: " + absolutePath);
-                            imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-pet.jpg")));
-                        }
-                    } catch (Exception e) {
-                        System.err.println("Error loading image from absolute path: " + e.getMessage());
-                        imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-pet.jpg")));
-                    }
-                }
-            } else {
-                System.out.println("No image URL provided, using default image");
-                imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-pet.jpg")));
-            }
-        } catch (Exception e) {
-            System.err.println("Error loading image: " + e.getMessage());
-            try {
-                imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-pet.jpg")));
-            } catch (Exception ex) {
-                System.err.println("Failed to load default image: " + ex.getMessage());
-            }
-        }
-        
-        // Set default size and preserve ratio
         imageView.setFitWidth(200);
         imageView.setFitHeight(200);
         imageView.setPreserveRatio(true);
+        
+        try {
+            // First try to load from resources
+            InputStream resourceStream = getClass().getResourceAsStream("/images/" + imagePath);
+            if (resourceStream != null) {
+                imageView.setImage(new Image(resourceStream));
+                resourceStream.close();
+                return imageView;
+            }
+            
+            // If not in resources, try absolute path
+            File imageFile = new File(imagePath);
+            if (imageFile.exists()) {
+                imageView.setImage(new Image(imageFile.toURI().toString()));
+                return imageView;
+            }
+            
+            // If both fail, use default image
+            System.err.println("Image not found: " + imagePath);
+            imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-pet.jpg")));
+        } catch (Exception e) {
+            System.err.println("Error loading image: " + e.getMessage());
+            imageView.setImage(new Image(getClass().getResourceAsStream("/images/default-pet.jpg")));
+        }
         
         return imageView;
     }

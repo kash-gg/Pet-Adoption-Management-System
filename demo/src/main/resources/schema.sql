@@ -1,6 +1,7 @@
+-- SQLBook: Code
 -- Create the database
-CREATE DATABASE IF NOT EXISTS pet_passion;
-USE pet_passion;
+CREATE DATABASE IF NOT EXISTS petpassion;
+USE petpassion;
 
 -- Users table (for login/registration)
 CREATE TABLE IF NOT EXISTS users (
@@ -14,19 +15,27 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Shelters table
-CREATE TABLE IF NOT EXISTS shelters (
+-- Drop and recreate Shelters table
+DROP TABLE IF EXISTS shelters;
+CREATE TABLE shelters (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     address VARCHAR(255) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     email VARCHAR(100) NOT NULL,
     capacity INT NOT NULL,
+    rating DOUBLE DEFAULT 0.0,
+    description TEXT,
+    type VARCHAR(50),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    country VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Pets table
-CREATE TABLE IF NOT EXISTS pets (
+-- Drop and recreate Pets table to handle shelter_id foreign key
+DROP TABLE IF EXISTS pets;
+CREATE TABLE pets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     species VARCHAR(50) NOT NULL,
@@ -37,34 +46,48 @@ CREATE TABLE IF NOT EXISTS pets (
     description TEXT,
     status ENUM('available', 'adopted', 'pending') NOT NULL DEFAULT 'available',
     shelter_id INT,
+    image_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (shelter_id) REFERENCES shelters(id)
 );
 
--- Donations table
-CREATE TABLE IF NOT EXISTS donations (
+-- Drop and recreate Donations table
+DROP TABLE IF EXISTS donations;
+CREATE TABLE donations (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    donor_id INT NOT NULL,
+    user_id INT NOT NULL,
+    donor_name VARCHAR(100) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    donation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     payment_method VARCHAR(50) NOT NULL,
+    donation_type VARCHAR(50) NOT NULL,
+    purpose VARCHAR(100) NOT NULL,
+    message TEXT,
+    date DATE NOT NULL,
     status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
-    FOREIGN KEY (donor_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Adoptions table
-CREATE TABLE IF NOT EXISTS adoptions (
+-- Drop and recreate Adoption Applications table
+DROP TABLE IF EXISTS adoption_applications;
+CREATE TABLE adoption_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pet_id INT NOT NULL,
-    adopter_id INT NOT NULL,
-    adoption_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('pending', 'approved', 'rejected', 'completed') NOT NULL DEFAULT 'pending',
+    applicant_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    address TEXT NOT NULL,
+    experience TEXT,
+    reason TEXT,
+    application_date DATE NOT NULL,
+    status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    shelter_id INT NOT NULL,
     FOREIGN KEY (pet_id) REFERENCES pets(id),
-    FOREIGN KEY (adopter_id) REFERENCES users(id)
+    FOREIGN KEY (shelter_id) REFERENCES shelters(id)
 );
 
--- Events table
-CREATE TABLE IF NOT EXISTS events (
+-- Drop and recreate Events table
+DROP TABLE IF EXISTS events;
+CREATE TABLE events (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(100) NOT NULL,
     description TEXT,
@@ -76,8 +99,9 @@ CREATE TABLE IF NOT EXISTS events (
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
--- Event participants table
-CREATE TABLE IF NOT EXISTS event_participants (
+-- Drop and recreate Event participants table
+DROP TABLE IF EXISTS event_participants;
+CREATE TABLE event_participants (
     event_id INT NOT NULL,
     user_id INT NOT NULL,
     registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
