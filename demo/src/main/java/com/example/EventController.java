@@ -100,6 +100,18 @@ public class EventController {
         // Load events data
         loadEventsFromDatabase();
 
+        // Add double-click event handler to the table
+        eventsTable.setRowFactory(tv -> {
+            TableRow<Event> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                    Event selectedEvent = row.getItem();
+                    new VolunteerController().showVolunteerForm(selectedEvent, stage);
+                }
+            });
+            return row;
+        });
+
         // Create table container with padding
         VBox tableContainer = new VBox(eventsTable);
         tableContainer.setPadding(new Insets(0, 20, 20, 20));

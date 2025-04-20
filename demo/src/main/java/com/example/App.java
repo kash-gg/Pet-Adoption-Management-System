@@ -160,6 +160,7 @@ public class App extends Application {
         Button adoptionsBtn = createNavButton("Adoptions", false);
         Button donationsBtn = createNavButton("Donations", false);
         Button eventsBtn = createNavButton("Events", false);
+        Button volunteersBtn = createNavButton("Volunteers", false);
         
         // Dark Mode Toggle
         HBox darkModeBox = new HBox(10);
@@ -206,6 +207,7 @@ public class App extends Application {
         adoptionsBtn.setOnAction(e -> new AdoptionController().showAdoptionTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT));
         donationsBtn.setOnAction(e -> new DonationController().showDonationTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT));
         eventsBtn.setOnAction(e -> new EventController().showEventsTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT));
+        volunteersBtn.setOnAction(e -> new VolunteerController().showVolunteerTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT));
         signOutBtn.setOnAction(e -> {
             DatabaseUtil.setCurrentUserId(-1); // Reset user session
             showLoginScreen(stage);
@@ -223,6 +225,7 @@ public class App extends Application {
             adoptionsBtn,
             donationsBtn,
             eventsBtn,
+            volunteersBtn,
             darkModeBox,
             spacer,
             signOutBtn

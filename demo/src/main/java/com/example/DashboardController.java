@@ -65,6 +65,7 @@ public class DashboardController {
         Button adoptionsBtn = createNavButton("Adoptions", false);
         Button donationsBtn = createNavButton("Donations", false);
         Button eventsBtn = createNavButton("Events", false);
+        Button volunteersBtn = createNavButton("Volunteers", false);
         
         // Dark Mode Toggle
         HBox darkModeBox = new HBox(10);
@@ -100,7 +101,8 @@ public class DashboardController {
         petsBtn.setOnAction(e -> new PetController().showPetsTab(stage, width, height));
         adoptionsBtn.setOnAction(e -> new AdoptionController().showAdoptionTab(stage, width, height));
         donationsBtn.setOnAction(e -> new DonationController().showDonationTab(stage, width, height));
-        eventsBtn.setOnAction(e -> showEventsTab(stage, width, height));
+        eventsBtn.setOnAction(e -> new EventController().showEventsTab(stage, width, height));
+        volunteersBtn.setOnAction(e -> new VolunteerController().showVolunteerTab(stage, width, height));
         signOutBtn.setOnAction(e -> {
             DatabaseUtil.setCurrentUserId(-1); // Reset user session
             new App().start(stage, width, height);
@@ -118,6 +120,7 @@ public class DashboardController {
             adoptionsBtn,
             donationsBtn,
             eventsBtn,
+            volunteersBtn,
             darkModeBox,
             spacer,
             signOutBtn

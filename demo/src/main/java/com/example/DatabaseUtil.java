@@ -34,10 +34,14 @@ public class DatabaseUtil {
             // Initialize the connection pool
             initializeConnectionPool();
             
+            // Execute schema.sql to create all tables
+            executeSchema();
+            
             // Create tables if they don't exist
             createUsersTableIfNotExists();
             createDonationsTableIfNotExists();
             createAdoptionApplicationsTableIfNotExists();
+            createVolunteersTableIfNotExists();
             
             System.out.println("DatabaseUtil initialized successfully");
         } catch (Exception e) {
@@ -511,6 +515,34 @@ public class DatabaseUtil {
         }
     }
 
+    private static void createVolunteersTableIfNotExists() {
+        String createTableSQL = "CREATE TABLE IF NOT EXISTS volunteers ("
+            + "id INT AUTO_INCREMENT PRIMARY KEY,"
+            + "volunteer_id VARCHAR(20) NOT NULL,"
+            + "name VARCHAR(100) NOT NULL,"
+            + "role VARCHAR(50) NOT NULL,"
+            + "phone_number VARCHAR(20) NOT NULL,"
+            + "email VARCHAR(100) NOT NULL,"
+            + "event_id INT NOT NULL,"
+            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+            + "FOREIGN KEY (event_id) REFERENCES events(id)"
+            + ")";
+        
+        Connection conn = null;
+        try {
+            conn = getConnection();
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute(createTableSQL);
+                System.out.println("Volunteers table created or verified successfully");
+            }
+        } catch (SQLException e) {
+            System.err.println("Error creating volunteers table: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            releaseConnection(conn);
+        }
+    }
+
     public static List<Event> getAllEvents() {
         List<Event> events = new ArrayList<>();
         String query = "SELECT * FROM events ORDER BY event_date DESC";
@@ -540,5 +572,56 @@ public class DatabaseUtil {
             releaseConnection(conn);
         }
         return events;
+    }
+
+    private static void executeSchema() {
+        Connection conn = null;
+        try {
+            conn = getConnection();
+            // Read schema.sql file
+            String schemaPath = "/schema.sql";
+            try (var inputStream = DatabaseUtil.class.getResourceAsStream(schemaPath)) {
+                if (inputStream == null) {
+                    throw new RuntimeException("Could not find schema.sql in resources");
+                }
+                String schema = new String(inputStream.readAllBytes());
+                
+                // Split the schema into individual statements
+                String[] statements = schema.split(";");
+                
+                // Execute each statement
+                for (String statement : statements) {
+                    if (!statement.trim().isEmpty()) {
+                        try (Statement stmt = conn.createStatement()) {
+                            stmt.execute(statement);
+                        }
+                    }
+                }
+                System.out.println("Schema executed successfully");
+            }
+        } catch (Exception e) {
+            System.err.println("Error executing schema: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            releaseConnection(conn);
+        }
+    }
+
+    public static boolean removePetByName(String petName) {
+        String sql = "DELETE FROM pets WHERE name = ?";
+        Connection conn = null;
+        try {
+            conn = getConnection();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, petName);
+                int rowsAffected = pstmt.executeUpdate();
+                return rowsAffected > 0;
+            }
+        } catch (SQLException e) {
+            System.err.println("Error removing pet: " + e.getMessage());
+            return false;
+        } finally {
+            releaseConnection(conn);
+        }
     }
 }

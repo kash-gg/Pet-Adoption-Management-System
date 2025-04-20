@@ -18,6 +18,7 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.InputStream;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -28,6 +29,15 @@ public class PetController {
     private static final int DEFAULT_WIDTH = 1200;
     private static final int DEFAULT_HEIGHT = 800;
     private TableView<Pet> petsTable;
+
+    private TextField nameField;
+    private ComboBox<String> speciesBox;
+    private TextField breedField;
+    private TextField ageField;
+    private ComboBox<String> genderBox;
+    private ComboBox<String> sizeBox;
+    private TextArea descriptionArea;
+    private TextField imageUrlField;
 
     public void showPetsTab(Stage stage, double width, double height) {
         BorderPane mainLayout = new BorderPane();
@@ -278,13 +288,13 @@ public class PetController {
 
     public void showAddPetForm(Stage stage, double width, double height) {
         BorderPane mainLayout = new BorderPane();
-        mainLayout.setStyle("-fx-background-color: linear-gradient(to bottom right, #2c3e50, #3498db);");
+        mainLayout.setStyle("-fx-background-color: " + (App.isDarkMode() ? "#2c2c2c" : "#f5f5f5") + ";");
         
         // Create back button
         Button backButton = new Button("← Back");
         backButton.setStyle(
             "-fx-background-color: transparent;" +
-            "-fx-text-fill: white;" +
+            "-fx-text-fill: " + (App.isDarkMode() ? "white" : "#2c3e50") + ";" +
             "-fx-font-size: 14px;" +
             "-fx-cursor: hand;"
         );
@@ -296,24 +306,33 @@ public class PetController {
             }
         });
 
-        // Create form
-        VBox formBox = createAddPetForm();
-        
-        // Create container with padding
-        VBox container = new VBox(10);
-        container.setPadding(new Insets(20));
-        container.getChildren().addAll(backButton, formBox);
-        
-        ScrollPane scrollPane = new ScrollPane(container);
+        // Create title section
+        Label titleLabel = new Label("Add a Pet for Adoption");
+        titleLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
+        titleLabel.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+
+        // Create top container with back button and title
+        HBox topContainer = new HBox(20);
+        topContainer.setAlignment(Pos.CENTER_LEFT);
+        topContainer.setPadding(new Insets(20));
+        topContainer.getChildren().addAll(backButton, titleLabel);
+
+        // Create form content
+        ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+
+        VBox formContainer = createAddPetForm();
+        scrollPane.setContent(formContainer);
+
+        // Add components to layout
+        mainLayout.setTop(topContainer);
         mainLayout.setCenter(scrollPane);
-        
+
         // Create scene
         Scene scene = new Scene(mainLayout, width, height);
         stage.setTitle("Pet Passion - Add Pet");
         stage.setScene(scene);
-        stage.show();
     }
 
     private String getDefaultImagePath() {
@@ -353,227 +372,218 @@ public class PetController {
         return imageView;
     }
 
-    private VBox createAddPetForm() {
-        VBox formBox = new VBox(20);
-        formBox.setPadding(new Insets(30));
-        formBox.setMaxWidth(800);
-        formBox.setAlignment(Pos.TOP_CENTER);
-        formBox.setStyle(
-            "-fx-background-color: rgba(255, 255, 255, 0.9);" +
-            "-fx-background-radius: 15px;" +
-            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 5);"
-        );
-        
-        // Title
-        Label titleLabel = new Label("Add New Pet");
-        titleLabel.setFont(Font.font("Arial", FontWeight.BOLD, 28));
-        titleLabel.setTextFill(Color.rgb(44, 62, 80));
-        titleLabel.setPadding(new Insets(0, 0, 20, 0));
-        
-        // Create two columns for form fields
-        HBox formColumns = new HBox(40);
-        formColumns.setAlignment(Pos.TOP_CENTER);
-        
-        // Left column
-        VBox leftColumn = new VBox(15);
-        leftColumn.setPrefWidth(350);
-        
-        // Right column
-        VBox rightColumn = new VBox(15);
-        rightColumn.setPrefWidth(350);
-        
-        // Form fields with modern styling
-        TextField nameField = createStyledTextField("Pet Name");
-        ComboBox<String> speciesCombo = createStyledComboBox("Species", "Dog", "Cat", "Bird", "Other");
-        TextField breedField = createStyledTextField("Breed");
-        TextField ageField = createStyledTextField("Age");
-        ComboBox<String> genderCombo = createStyledComboBox("Gender", "Male", "Female", "Other");
-        ComboBox<String> sizeCombo = createStyledComboBox("Size", "Small", "Medium", "Large");
-        
-        TextArea descriptionArea = new TextArea();
-        descriptionArea.setPromptText("Description");
-        descriptionArea.setPrefRowCount(3);
-        descriptionArea.setWrapText(true);
-        descriptionArea.setStyle(
-            "-fx-background-color: white;" +
-            "-fx-background-radius: 10px;" +
-            "-fx-border-radius: 10px;" +
-            "-fx-border-color: #e0e0e0;" +
-            "-fx-padding: 8 15;" +
-            "-fx-font-size: 14px;"
-        );
-        
-        // Image upload section
-        VBox imageSection = new VBox(10);
-        imageSection.setAlignment(Pos.CENTER);
-        
-        Button uploadImageButton = new Button("Upload Image");
-        uploadImageButton.setStyle(
-            "-fx-background-color: #3498db;" +
-            "-fx-text-fill: white;" +
-            "-fx-font-weight: bold;" +
-            "-fx-background-radius: 20px;" +
-            "-fx-padding: 10 20;" +
-            "-fx-cursor: hand;"
-        );
-        
-        ImageView petImageView = createPetImageView(null);
-        petImageView.setFitWidth(200);
-        petImageView.setFitHeight(200);
-        
-        uploadImageButton.setOnAction(e -> {
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg")
-            );
-            File selectedFile = fileChooser.showOpenDialog(null);
-            if (selectedFile != null) {
-                Image image = new Image(selectedFile.toURI().toString());
-                petImageView.setImage(image);
-            }
-        });
-        
-        imageSection.getChildren().addAll(uploadImageButton, petImageView);
-        
-        // Submit button
-        Button submitButton = new Button("Add Pet");
-        submitButton.setPrefWidth(200);
-        submitButton.setStyle(
-            "-fx-background-color: #2ecc71;" +
-            "-fx-text-fill: white;" +
-            "-fx-font-weight: bold;" +
-            "-fx-background-radius: 25px;" +
-            "-fx-padding: 15 30;" +
-            "-fx-font-size: 16px;" +
-            "-fx-cursor: hand;"
-        );
-        
-        // Add hover effect
-        submitButton.setOnMouseEntered(e -> 
-            submitButton.setStyle(
-                "-fx-background-color: #27ae60;" +
-                "-fx-text-fill: white;" +
-                "-fx-font-weight: bold;" +
-                "-fx-background-radius: 25px;" +
-                "-fx-padding: 15 30;" +
-                "-fx-font-size: 16px;" +
-                "-fx-cursor: hand;"
-            )
-        );
-        submitButton.setOnMouseExited(e -> 
-            submitButton.setStyle(
-                "-fx-background-color: #2ecc71;" +
-                "-fx-text-fill: white;" +
-                "-fx-font-weight: bold;" +
-                "-fx-background-radius: 25px;" +
-                "-fx-padding: 15 30;" +
-                "-fx-font-size: 16px;" +
-                "-fx-cursor: hand;"
-            )
-        );
-        
-        submitButton.setOnAction(e -> {
-            try {
-                addPetToDatabase(
-                    nameField.getText(),
-                    speciesCombo.getValue(),
-                    breedField.getText(),
-                    Integer.parseInt(ageField.getText()),
-                    genderCombo.getValue(),
-                    sizeCombo.getValue(),
-                    descriptionArea.getText(),
-                    petImageView.getImage() != null ? petImageView.getImage().getUrl() : getRandomPetImageUrl()
-                );
-                showAlert("Pet added successfully!");
-            } catch (Exception ex) {
-                showAlert("Error adding pet: " + ex.getMessage());
-            }
-        });
-        
-        // Organize fields into columns
-        leftColumn.getChildren().addAll(
-            nameField,
-            speciesCombo,
-            breedField,
-            ageField
-        );
-        
-        rightColumn.getChildren().addAll(
-            genderCombo,
-            sizeCombo,
-            descriptionArea
-        );
-        
-        formColumns.getChildren().addAll(leftColumn, rightColumn);
-        
-        // Add all components to form
-        formBox.getChildren().addAll(
-            titleLabel,
-            formColumns,
-            imageSection,
-            submitButton
-        );
-        
-        return formBox;
-    }
-
     private TextField createStyledTextField(String prompt) {
         TextField field = new TextField();
         field.setPromptText(prompt);
         field.setStyle(
             "-fx-background-color: white;" +
-            "-fx-background-radius: 10px;" +
-            "-fx-border-radius: 10px;" +
             "-fx-border-color: #e0e0e0;" +
-            "-fx-padding: 8 15;" +
+            "-fx-border-radius: 5;" +
+            "-fx-padding: 8 12;" +
             "-fx-font-size: 14px;"
         );
+        field.setPrefHeight(35);
         return field;
     }
 
-    private void addPetToDatabase(String name, String species, String breed, int age,
-                                String gender, String size, String description, String imageUrl) throws SQLException {
-        String query = "INSERT INTO pets (name, species, breed, age, gender, size, description, image_url, status) " +
-                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Available')";
+    private String getImageUrl(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return getDefaultImagePath();
+        }
         
-        try (var conn = DatabaseUtil.getConnection();
-             var stmt = conn.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            
-            stmt.setString(1, name);
-            stmt.setString(2, species);
-            stmt.setString(3, breed);
-            stmt.setInt(4, age);
-            stmt.setString(5, gender);
-            stmt.setString(6, size);
-            stmt.setString(7, description);
-            
-            // Store just the filename in the database
-            String finalImageUrl = imageUrl;
-            if (imageUrl != null && imageUrl.contains("/")) {
-                finalImageUrl = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+        // If it's a resource path (starts with /)
+        if (input.startsWith("/")) {
+            try {
+                String resourceUrl = getClass().getResource(input).toExternalForm();
+                return resourceUrl;
+            } catch (Exception e) {
+                System.err.println("Could not load resource image: " + input);
+                return getDefaultImagePath();
             }
-            if (finalImageUrl == null || finalImageUrl.trim().isEmpty()) {
-                finalImageUrl = getRandomPetImageUrl();
+        }
+        
+        // If it's a full URL or file path, return as is
+        return input;
+    }
+
+    private VBox createAddPetForm() {
+        VBox form = new VBox(20);
+        form.setPadding(new Insets(20));
+        form.setAlignment(Pos.TOP_LEFT);
+        form.setMaxWidth(600);
+
+        // Initialize form fields
+        nameField = createStyledTextField("Enter pet name");
+        speciesBox = createStyledComboBox("Select species", "Dog", "Cat", "Bird", "Other");
+        breedField = createStyledTextField("Enter breed");
+        ageField = createStyledTextField("Enter age");
+        genderBox = createStyledComboBox("Select gender", "Male", "Female", "Other");
+        sizeBox = createStyledComboBox("Select size", "Small", "Medium", "Large");
+        descriptionArea = createStyledTextArea("Enter description");
+        imageUrlField = createStyledTextField("Enter image URL or resource path (e.g., /images/pet.jpg)");
+
+        // Create form groups
+        VBox nameGroup = createFormGroup("Pet Name *", nameField);
+        VBox speciesGroup = createFormGroup("Species *", speciesBox);
+        VBox breedGroup = createFormGroup("Breed", breedField);
+        VBox ageGroup = createFormGroup("Age *", ageField);
+        VBox genderGroup = createFormGroup("Gender *", genderBox);
+        VBox sizeGroup = createFormGroup("Size *", sizeBox);
+        VBox descriptionGroup = createFormGroup("Description", descriptionArea);
+        VBox imageUrlGroup = createFormGroup("Image URL", imageUrlField);
+
+        // Create submit button
+        Button submitButton = new Button("Add Pet");
+        styleButton(submitButton);
+        submitButton.setOnAction(e -> {
+            try {
+                // Validate required fields
+                if (nameField.getText().trim().isEmpty() ||
+                    speciesBox.getValue() == null ||
+                    ageField.getText().trim().isEmpty() ||
+                    genderBox.getValue() == null ||
+                    sizeBox.getValue() == null) {
+                    showAlert("Please fill in all required fields (marked with *)");
+                    return;
+                }
+
+                // Validate age is a positive number
+                int age;
+                try {
+                    age = Integer.parseInt(ageField.getText().trim());
+                    if (age < 0) {
+                        showAlert("Age must be a positive number");
+                        return;
+                    }
+                } catch (NumberFormatException ex) {
+                    showAlert("Age must be a valid number");
+                    return;
+                }
+
+                // Process the image URL
+                String processedImageUrl = getImageUrl(imageUrlField.getText().trim());
+
+                // Submit pet data
+                submitPet(
+                    nameField.getText().trim(),
+                    speciesBox.getValue(),
+                    breedField.getText().trim(),
+                    age,
+                    genderBox.getValue(),
+                    sizeBox.getValue(),
+                    descriptionArea.getText().trim(),
+                    processedImageUrl
+                );
+            } catch (Exception ex) {
+                showAlert("Error adding pet: " + ex.getMessage());
             }
-            stmt.setString(8, finalImageUrl);
+        });
+
+        form.getChildren().addAll(
+            nameGroup,
+            speciesGroup,
+            breedGroup,
+            ageGroup,
+            genderGroup,
+            sizeGroup,
+            descriptionGroup,
+            imageUrlGroup,
+            submitButton
+        );
+
+        return form;
+    }
+
+    private TextArea createStyledTextArea(String prompt) {
+        TextArea area = new TextArea();
+        area.setPromptText(prompt);
+        area.setStyle(
+            "-fx-background-color: " + (App.isDarkMode() ? "#333333" : "white") + ";" +
+            "-fx-text-fill: " + (App.isDarkMode() ? "white" : "black") + ";" +
+            "-fx-border-color: #d8dee9;" +
+            "-fx-border-radius: 4;" +
+            "-fx-background-radius: 4;" +
+            "-fx-padding: 8 12;" +
+            "-fx-font-size: 14px;"
+        );
+        area.setPrefRowCount(4);
+        return area;
+    }
+
+    private VBox createFormGroup(String label, Control field) {
+        VBox group = new VBox(5);
+        Label labelNode = new Label(label);
+        labelNode.setTextFill(App.isDarkMode() ? Color.WHITE : Color.rgb(44, 62, 80));
+        labelNode.setFont(Font.font("Verdana", FontWeight.NORMAL, 14));
+        group.getChildren().addAll(labelNode, field);
+        return group;
+    }
+
+    private void styleButton(Button button) {
+        button.setStyle(
+            "-fx-background-color: #3498db;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-weight: bold;" +
+            "-fx-background-radius: 4;" +
+            "-fx-padding: 12 30;" +
+            "-fx-font-size: 14px;" +
+            "-fx-cursor: hand;"
+        );
+        button.setPrefWidth(200);
+    }
+
+    private void submitPet(String name, String species, String breed, int age,
+                          String gender, String size, String description, String imageUrl) {
+        // Validate inputs
+        if (name == null || name.trim().isEmpty()) {
+            showAlert("Pet name is required");
+            return;
+        }
+        if (species == null || species.trim().isEmpty()) {
+            showAlert("Species is required");
+            return;
+        }
+        if (age < 0) {
+            showAlert("Age must be a positive number");
+            return;
+        }
+        if (gender == null || gender.trim().isEmpty()) {
+            showAlert("Gender is required");
+            return;
+        }
+        if (size == null || size.trim().isEmpty()) {
+            showAlert("Size is required");
+            return;
+        }
+
+        try {
+            // Add pet to database
+            Connection conn = DatabaseUtil.getConnection();
+            String sql = "INSERT INTO pets (name, species, breed, age, gender, size, description, image_url, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available')";
             
-            int affectedRows = stmt.executeUpdate();
-            
-            if (affectedRows == 0) {
-                throw new SQLException("Creating pet failed, no rows affected.");
-            }
-            
-            // Get the generated ID
-            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    int id = generatedKeys.getInt(1);
-                    // Create a new Pet object with the correct parameters
-                    Pet newPet = new Pet(id, name, species, breed, age, size, "Available", description, finalImageUrl);
-                    // You can use this newPet object if needed
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, name);
+                pstmt.setString(2, species);
+                pstmt.setString(3, breed);
+                pstmt.setInt(4, age);
+                pstmt.setString(5, gender);
+                pstmt.setString(6, size);
+                pstmt.setString(7, description);
+                pstmt.setString(8, imageUrl);
+                
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    showAlert("Pet added successfully!");
+                    // Get the current stage from any control in the scene
+                    Stage stage = (Stage) nameField.getScene().getWindow();
+                    new DashboardController().showDashboard(stage, DEFAULT_WIDTH, DEFAULT_HEIGHT, DatabaseUtil.getCurrentUserId());
                 } else {
-                    throw new SQLException("Creating pet failed, no ID obtained.");
+                    showAlert("Failed to add pet");
                 }
             }
+        } catch (SQLException e) {
+            showAlert("Database error: " + e.getMessage());
         }
     }
 
@@ -757,5 +767,13 @@ public class PetController {
         }
         
         return filteredPets;
+    }
+
+    public void removeSheru() {
+        if (DatabaseUtil.removePetByName("Sheru")) {
+            showAlert("Sheru has been successfully removed from the pets list.");
+        } else {
+            showAlert("Could not find Sheru in the pets list.");
+        }
     }
 } 
