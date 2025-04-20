@@ -4,141 +4,392 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.scene.Parent;
+import javafx.scene.Node;
 
 public class App extends Application {
-
-    private static final String APP_TITLE = "Pet Passion";
-    private static final int SCENE_WIDTH = 800;
-    private static final int SCENE_HEIGHT = 600;
+    private static final double WINDOW_WIDTH = 1200;
+    private static final double WINDOW_HEIGHT = 800;
+    
+    private static boolean isDarkMode = false;
+    
+    public static boolean isDarkMode() {
+        return isDarkMode;
+    }
+    
+    public static void setDarkMode(boolean darkMode) {
+        isDarkMode = darkMode;
+    }
     
     @Override
-    public void start(Stage primaryStage) {
-        start(primaryStage, SCENE_WIDTH, SCENE_HEIGHT);
+    public void start(Stage stage) {
+        start(stage, WINDOW_WIDTH, WINDOW_HEIGHT);
     }
     
-    public void start(Stage primaryStage, double width, double height) {
-        // Set up the main container with a gradient background
-        VBox root = new VBox(20);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(50));
+    public void start(Stage stage, double width, double height) {
+        showLoginScreen(stage);
+    }
+    
+    private void showLoginScreen(Stage stage) {
+        // Create login form
+        VBox loginForm = createLoginForm(stage);
         
-        // Create a stylish background with linear gradient
-        String gradientStyle = "-fx-background-color: linear-gradient(to bottom right, #2c3e50, #3498db);";
-        root.setStyle(gradientStyle);
+        // Create scene
+        Scene scene = new Scene(loginForm, WINDOW_WIDTH, WINDOW_HEIGHT);
+        stage.setTitle("Pet Passion - Login");
+        stage.setScene(scene);
+        stage.show();
+    }
+    
+    private VBox createLoginForm(Stage stage) {
+        VBox form = new VBox(20);
+        form.setAlignment(Pos.CENTER);
+        form.setPadding(new Insets(40));
+        form.setStyle("-fx-background-color: #f5f5f5;");
         
-        // Application Title
-        Label titleLabel = new Label(APP_TITLE);
+        // Title
+        Label titleLabel = new Label("Pet Passion");
         titleLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 36));
-        titleLabel.setTextFill(Color.WHITE);
+        titleLabel.setTextFill(Color.rgb(44, 62, 80));
         
-        // Welcome message
-        Label welcomeLabel = new Label("Welcome to your one stop pet adoption and donation app!");
-        welcomeLabel.setFont(Font.font("Verdana", FontWeight.NORMAL, 16));
-        welcomeLabel.setTextFill(Color.WHITE);
+        // Login container
+        VBox loginContainer = new VBox(15);
+        loginContainer.setAlignment(Pos.CENTER);
+        loginContainer.setPadding(new Insets(30));
+        loginContainer.setMaxWidth(400);
+        loginContainer.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 10;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);"
+        );
         
-        // Container for buttons to allow proper styling and layout
-        HBox buttonContainer = new HBox(30);
-        buttonContainer.setAlignment(Pos.CENTER);
-        buttonContainer.setPadding(new Insets(40, 0, 0, 0));
+        Label subtitleLabel = new Label("Welcome back!");
+        subtitleLabel.setFont(Font.font("Verdana", FontWeight.NORMAL, 18));
         
-        // Create stylish buttons with hover effects
-        Button loginButton = createStyledButton("Login");
-        Button registerButton = createStyledButton("Register");
+        TextField usernameField = new TextField();
+        usernameField.setPromptText("Username");
+        styleTextField(usernameField);
         
-        // Add buttons to the container
-        buttonContainer.getChildren().addAll(loginButton, registerButton);
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Password");
+        styleTextField(passwordField);
         
-        // Add all elements to the root container
-        root.getChildren().addAll(titleLabel, welcomeLabel, buttonContainer);
+        Button loginButton = new Button("Login");
+        styleButton(loginButton, true);
         
-        // Set up action handlers for buttons
-        loginButton.setOnAction(e -> openLoginWindow(primaryStage, width, height));
-        registerButton.setOnAction(e -> openRegisterWindow(primaryStage, width, height));
+        // Register link
+        Button registerButton = new Button("Create Account");
+        styleButton(registerButton, false);
         
-        // Create the scene and set up the stage
-        Scene scene = new Scene(root, width, height);
-        primaryStage.setTitle(APP_TITLE);
-        primaryStage.setScene(scene);
+        loginButton.setOnAction(e -> {
+            String username = usernameField.getText();
+            String password = passwordField.getText();
+            
+            try {
+                if (DatabaseUtil.validateUser(username, password)) {
+                    showDashboard(stage);
+                } else {
+                    showAlert("Invalid username or password");
+                }
+            } catch (Exception ex) {
+                showAlert("Error during login: " + ex.getMessage());
+            }
+        });
         
-        // Set application icon (optional)
-        try {
-            primaryStage.getIcons().add(new Image(App.class.getResourceAsStream("/resources/app-icon.png")));
-        } catch (Exception e) {
-            System.out.println("Icon not found, continuing without it.");
-        }
+        registerButton.setOnAction(e -> {
+            try {
+                new SecondaryController().showRegisterScreen(stage, WINDOW_WIDTH, WINDOW_HEIGHT);
+            } catch (Exception ex) {
+                showAlert("Error opening registration screen: " + ex.getMessage());
+            }
+        });
         
-        primaryStage.show();
+        loginContainer.getChildren().addAll(
+            subtitleLabel,
+            usernameField,
+            passwordField,
+            loginButton,
+            new Separator(),
+            registerButton
+        );
+        
+        form.getChildren().addAll(titleLabel, loginContainer);
+        return form;
     }
     
-    private Button createStyledButton(String text) {
-        Button button = new Button(text);
+    private void showDashboard(Stage stage) {
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setStyle("-fx-background-color: #f5f5f5;");
         
-        // Basic button styling
-        button.setPrefSize(150, 50);
-        button.setFont(Font.font("Verdana", FontWeight.BOLD, 14));
+        // Create sidebar
+        VBox sidebar = createSidebar(stage);
+        mainLayout.setLeft(sidebar);
         
-        // Custom CSS styling for the button
-        String buttonStyle = 
-            "-fx-background-color: #ecf0f1;" +
-            "-fx-text-fill: #2c3e50;" +
-            "-fx-background-radius: 25;" +
-            "-fx-cursor: hand;";
+        // Create content area
+        VBox content = createContent(stage);
+        mainLayout.setCenter(content);
         
-        String hoverStyle = 
+        // Create scene
+        Scene scene = new Scene(mainLayout, WINDOW_WIDTH, WINDOW_HEIGHT);
+        stage.setTitle("Pet Passion - Dashboard");
+        stage.setScene(scene);
+    }
+    
+    private VBox createSidebar(Stage stage) {
+        VBox sidebar = new VBox(20);
+        sidebar.setPrefWidth(250);
+        updateSidebarStyle(sidebar);
+        
+        // Logo
+        Label logo = new Label("Pet Passion");
+        logo.setFont(Font.font("Verdana", FontWeight.BOLD, 24));
+        logo.setTextFill(Color.WHITE);
+        
+        // Navigation buttons
+        Button dashboardBtn = createNavButton("Dashboard", true);
+        Button petsBtn = createNavButton("Pets", false);
+        Button adoptionsBtn = createNavButton("Adoptions", false);
+        Button donationsBtn = createNavButton("Donations", false);
+        
+        // Dark Mode Toggle
+        HBox darkModeBox = new HBox(10);
+        darkModeBox.setAlignment(Pos.CENTER_LEFT);
+        Label darkModeLabel = new Label("Dark Mode");
+        darkModeLabel.setTextFill(Color.WHITE);
+        ToggleButton darkModeToggle = new ToggleButton();
+        darkModeToggle.setSelected(isDarkMode);
+        darkModeToggle.setStyle(
+            "-fx-background-radius: 12;" +
+            "-fx-pref-width: 40;" +
+            "-fx-pref-height: 20;" +
+            "-fx-background-color: " + (isDarkMode ? "#2ecc71" : "#95a5a6") + ";"
+        );
+        
+        darkModeToggle.setOnAction(e -> {
+            isDarkMode = darkModeToggle.isSelected();
+            updateSidebarStyle(sidebar);
+            updateMainStyle(stage.getScene().getRoot());
+            darkModeToggle.setStyle(
+                "-fx-background-radius: 12;" +
+                "-fx-pref-width: 40;" +
+                "-fx-pref-height: 20;" +
+                "-fx-background-color: " + (isDarkMode ? "#2ecc71" : "#95a5a6") + ";"
+            );
+        });
+        
+        darkModeBox.getChildren().addAll(darkModeLabel, darkModeToggle);
+        
+        // Sign out button
+        Button signOutBtn = new Button("Sign Out");
+        signOutBtn.setStyle(
             "-fx-background-color: #e74c3c;" +
             "-fx-text-fill: white;" +
-            "-fx-background-radius: 25;";
+            "-fx-font-size: 14px;" +
+            "-fx-padding: 10 20;" +
+            "-fx-background-radius: 5;" +
+            "-fx-cursor: hand;"
+        );
         
-        button.setStyle(buttonStyle);
+        // Add button actions
+        dashboardBtn.setOnAction(e -> showDashboard(stage));
+        petsBtn.setOnAction(e -> new PetController().showPetsTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT));
+        adoptionsBtn.setOnAction(e -> new AdoptionController().showAdoptionTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT));
+        donationsBtn.setOnAction(e -> new DonationController().showDonationTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT));
+        signOutBtn.setOnAction(e -> {
+            DatabaseUtil.setCurrentUserId(-1); // Reset user session
+            showLoginScreen(stage);
+        });
         
-        // Add shadow effect
-        DropShadow shadow = new DropShadow();
-        shadow.setRadius(5);
-        shadow.setOffsetX(2);
-        shadow.setOffsetY(2);
-        shadow.setColor(Color.rgb(0, 0, 0, 0.3));
-        button.setEffect(shadow);
+        // Add spacing before sign out button
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
         
-        // Add hover effect
-        button.setOnMouseEntered(e -> button.setStyle(hoverStyle));
-        button.setOnMouseExited(e -> button.setStyle(buttonStyle));
+        sidebar.getChildren().addAll(
+            logo,
+            new Separator(),
+            dashboardBtn,
+            petsBtn,
+            adoptionsBtn,
+            donationsBtn,
+            darkModeBox,
+            spacer,
+            signOutBtn
+        );
         
+        return sidebar;
+    }
+    
+    private void updateSidebarStyle(VBox sidebar) {
+        sidebar.setStyle(
+            "-fx-background-color: " + (isDarkMode ? "#1a1a1a" : "#2b3467") + ";" +
+            "-fx-padding: 20;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 5, 0);"
+        );
+    }
+    
+    private void updateMainStyle(Parent root) {
+        if (root instanceof BorderPane) {
+            BorderPane mainLayout = (BorderPane) root;
+            mainLayout.setStyle("-fx-background-color: " + (isDarkMode ? "#2c2c2c" : "#f5f5f5") + ";");
+            
+            // Update content area if it exists
+            Node center = mainLayout.getCenter();
+            if (center instanceof VBox) {
+                VBox content = (VBox) center;
+                for (Node node : content.getChildren()) {
+                    if (node instanceof Label) {
+                        ((Label) node).setTextFill(isDarkMode ? Color.WHITE : Color.rgb(44, 62, 80));
+                    }
+                }
+            }
+        }
+    }
+    
+    private VBox createContent(Stage stage) {
+        VBox content = new VBox(30);
+        content.setPadding(new Insets(40));
+        
+        // Welcome section
+        Label welcomeLabel = new Label("Welcome to Pet Passion");
+        welcomeLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 32));
+        welcomeLabel.setTextFill(Color.rgb(44, 62, 80));
+        
+        Label subtitleLabel = new Label("Choose an action to get started");
+        subtitleLabel.setFont(Font.font("Verdana", FontWeight.NORMAL, 16));
+        subtitleLabel.setTextFill(Color.rgb(108, 117, 125));
+        
+        // Action cards
+        GridPane actionCards = createActionCards(stage);
+        
+        content.getChildren().addAll(welcomeLabel, subtitleLabel, actionCards);
+        return content;
+    }
+    
+    private GridPane createActionCards(Stage stage) {
+        GridPane grid = new GridPane();
+        grid.setHgap(20);
+        grid.setVgap(20);
+        
+        // Create action cards
+        VBox findPetCard = createActionCard(
+            "Find a Pet",
+            "Browse our available pets and find your perfect companion",
+            e -> new PetController().showPetsTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT)
+        );
+        
+        VBox donateCard = createActionCard(
+            "Make a Donation",
+            "Support our mission by making a donation",
+            e -> new DonationController().showDonationTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT)
+        );
+        
+        VBox adoptionCard = createActionCard(
+            "Adoption Process",
+            "Learn about our adoption process and requirements",
+            e -> new AdoptionController().showAdoptionTab(stage, WINDOW_WIDTH, WINDOW_HEIGHT)
+        );
+        
+        VBox storiesCard = createActionCard(
+            "Success Stories",
+            "Read heartwarming stories of successful adoptions",
+            e -> showAlert("Coming soon!")
+        );
+        
+        // Add cards to grid
+        grid.add(findPetCard, 0, 0);
+        grid.add(donateCard, 1, 0);
+        grid.add(adoptionCard, 0, 1);
+        grid.add(storiesCard, 1, 1);
+        
+        return grid;
+    }
+    
+    private VBox createActionCard(String title, String description, javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+        VBox card = new VBox(15);
+        card.setPadding(new Insets(20));
+        card.setPrefWidth(400);
+        card.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-background-radius: 10;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);"
+        );
+        
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 18));
+        titleLabel.setTextFill(Color.rgb(44, 62, 80));
+        
+        Label descLabel = new Label(description);
+        descLabel.setWrapText(true);
+        descLabel.setTextFill(Color.rgb(108, 117, 125));
+        
+        Button learnMoreBtn = new Button("Learn More");
+        styleButton(learnMoreBtn, false);
+        learnMoreBtn.setOnAction(action);
+        
+        card.getChildren().addAll(titleLabel, descLabel, learnMoreBtn);
+        return card;
+    }
+    
+    private Button createNavButton(String text, boolean isActive) {
+        Button button = new Button(text);
+        button.setMaxWidth(Double.MAX_VALUE);
+        updateNavButtonStyle(button, isActive);
         return button;
     }
     
-    private void openLoginWindow(Stage primaryStage, double width, double height) {
-        // We'll call the PrimaryController to handle this
-        System.out.println("Opening login window...");
-        try {
-            new PrimaryController().showLoginScreen(primaryStage, width, height);
-        } catch (Exception e) {
-            System.err.println("Error opening login window: " + e.getMessage());
-            e.printStackTrace();
-        }
+    private void updateNavButtonStyle(Button button, boolean isActive) {
+        button.setStyle(
+            "-fx-background-color: " + (isActive ? "#3498db" : "transparent") + ";" +
+            "-fx-text-fill: " + (isDarkMode ? "#ffffff" : "#ffffff") + ";" +
+            "-fx-font-size: 14px;" +
+            "-fx-padding: 10 20;" +
+            "-fx-cursor: hand;" +
+            "-fx-alignment: CENTER-LEFT;"
+        );
     }
     
-    private void openRegisterWindow(Stage primaryStage, double width, double height) {
-        // We'll call the SecondaryController to handle this
-        System.out.println("Opening registration window...");
-        try {
-            new SecondaryController().showRegisterScreen(primaryStage, width, height);
-        } catch (Exception e) {
-            System.err.println("Error opening registration window: " + e.getMessage());
-            e.printStackTrace();
-        }
+    private void styleTextField(TextField field) {
+        field.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-border-color: #e0e0e0;" +
+            "-fx-border-radius: 5;" +
+            "-fx-padding: 8 12;" +
+            "-fx-font-size: 14px;"
+        );
+        field.setPrefHeight(35);
+    }
+    
+    private void styleButton(Button button, boolean isPrimary) {
+        button.setStyle(
+            "-fx-background-color: " + (isPrimary ? "#2ecc71" : "#3498db") + ";" +
+            "-fx-text-fill: white;" +
+            "-fx-font-weight: bold;" +
+            "-fx-background-radius: 5;" +
+            "-fx-padding: 12 30;" +
+            "-fx-font-size: 14px;" +
+            "-fx-cursor: hand;"
+        );
+        button.setMaxWidth(Double.MAX_VALUE);
+    }
+    
+    private void showAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Information");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
     
     public static void main(String[] args) {
-        launch(args);
+        launch();
     }
 }
+

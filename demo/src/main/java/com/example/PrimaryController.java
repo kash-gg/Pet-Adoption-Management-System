@@ -19,11 +19,14 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.stage.Window;
+import javafx.scene.Node;
 
 public class PrimaryController {
 
     private static final int DEFAULT_WIDTH = 1000;
     private static final int DEFAULT_HEIGHT = 700;
+    private TextField usernameField;
 
     public void showLoginScreen(Stage stage) {
         showLoginScreen(stage, DEFAULT_WIDTH, DEFAULT_HEIGHT);
@@ -199,6 +202,7 @@ public class PrimaryController {
             inputField = new PasswordField();
         } else {
             inputField = new TextField();
+            usernameField = (TextField)inputField;
         }
         
         if (inputField instanceof TextField) {
@@ -223,7 +227,6 @@ public class PrimaryController {
     }
 
     private void handleLogin(String username, String password) {
-        // In a real application, validate credentials against database
         if (username == null || username.trim().isEmpty()) {
             showAlert("Username cannot be empty");
             return;
@@ -234,9 +237,28 @@ public class PrimaryController {
             return;
         }
         
-        // Here you would connect to your MySQL database to verify credentials
-        // For now, we'll just show a success message
-        showAlert("Login functionality will be connected to MySQL database.");
+        try {
+            if (DatabaseUtil.validateUser(username, password)) {
+                int userId = DatabaseUtil.getUserId(username);
+                if (userId > 0) {
+                    Stage currentStage = (Stage) usernameField.getScene().getWindow();
+                    boolean wasFullScreen = currentStage.isFullScreen();
+                    double width = currentStage.getWidth();
+                    double height = currentStage.getHeight();
+                    
+                    new DashboardController().showDashboard(currentStage, width, height, userId);
+                    if (wasFullScreen) {
+                        currentStage.setFullScreen(true);
+                    }
+                } else {
+                    showAlert("Error: Could not retrieve user information");
+                }
+            } else {
+                showAlert("Invalid username or password");
+            }
+        } catch (Exception e) {
+            showAlert("Error during login: " + e.getMessage());
+        }
     }
 
     private void backToHome(Stage stage, double width, double height) {

@@ -166,7 +166,7 @@ public class SecondaryController {
             String confirmPassword = ((PasswordField)confirmPasswordBox.getChildren().get(1)).getText();
             String phone = ((TextField)phoneBox.getChildren().get(1)).getText();
             
-            handleRegistration(name, email, username, password, confirmPassword, phone, termsCheckbox.isSelected());
+            handleRegistration(name, email, username, password, phone, stage);
         });
         
         loginLink.setOnAction(e -> {
@@ -225,17 +225,14 @@ public class SecondaryController {
         return fieldBox;
     }
 
-    private void handleRegistration(String name, String email, String username, 
-                                    String password, String confirmPassword, 
-                                    String phone, boolean termsAccepted) {
-        // Validate input fields
+    private void handleRegistration(String name, String email, String username, String password, String phone, Stage currentStage) {
         if (name == null || name.trim().isEmpty()) {
-            showAlert("Full name cannot be empty");
+            showAlert("Name cannot be empty");
             return;
         }
         
-        if (email == null || email.trim().isEmpty() || !email.contains("@")) {
-            showAlert("Please enter a valid email address");
+        if (email == null || email.trim().isEmpty()) {
+            showAlert("Email cannot be empty");
             return;
         }
         
@@ -249,19 +246,32 @@ public class SecondaryController {
             return;
         }
         
-        if (!password.equals(confirmPassword)) {
-            showAlert("Passwords do not match");
+        if (phone == null || phone.trim().isEmpty()) {
+            showAlert("Phone number cannot be empty");
             return;
         }
         
-        if (!termsAccepted) {
-            showAlert("You must accept the Terms and Conditions");
-            return;
+        try {
+            if (DatabaseUtil.registerUser(name, email, username, password, phone)) {
+                int userId = DatabaseUtil.getUserId(username);
+                if (userId > 0) {
+                    boolean wasFullScreen = currentStage.isFullScreen();
+                    double width = currentStage.getWidth();
+                    double height = currentStage.getHeight();
+                    
+                    new DashboardController().showDashboard(currentStage, width, height, userId);
+                    if (wasFullScreen) {
+                        currentStage.setFullScreen(true);
+                    }
+                } else {
+                    showAlert("Error: Could not retrieve user information");
+                }
+            } else {
+                showAlert("Error registering user");
+            }
+        } catch (Exception e) {
+            showAlert("Error during registration: " + e.getMessage());
         }
-        
-        // Here you would connect to your MySQL database to store the user
-        // For now, we'll just show a success message
-        showAlert("Registration functionality will be connected to MySQL database.");
     }
 
     private void backToHome(Stage stage, double width, double height) {
